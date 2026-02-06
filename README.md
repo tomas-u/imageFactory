@@ -32,7 +32,7 @@ packer-templates/
 ├── shared/                          # Reusable provisioning assets
 │   ├── scripts/
 │   │   ├── base-setup.sh            #   OS hardening & base packages
-│   │   ├── docker-install.sh        #   Docker CE installation
+│   │   ├── podman-install.sh        #   Podman container engine
 │   │   ├── monitoring-agent.sh      #   Prometheus node_exporter
 │   │   └── cleanup.sh              #   Image cleanup / shrink
 │   └── ansible/

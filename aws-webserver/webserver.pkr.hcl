@@ -147,11 +147,11 @@ build {
     expect_disconnect = false
   }
 
-  # ── Step 3: Install Docker ─────────────────────────────────
+  # ── Step 3: Install Podman ─────────────────────────────────
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/docker-install.sh",
+      "${path.root}/../shared/scripts/podman-install.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }

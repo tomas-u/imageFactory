@@ -4,7 +4,7 @@
 #
 # Builds a hardened Ubuntu base image on Azure with:
 #   • Security updates applied
-#   • Docker CE
+#   • Podman
 #   • Prometheus node_exporter
 #   • CIS-style OS hardening
 #
@@ -119,7 +119,7 @@ build {
   provisioner "shell" {
     scripts = [
       "${path.root}/../shared/scripts/base-setup.sh",
-      "${path.root}/../shared/scripts/docker-install.sh",
+      "${path.root}/../shared/scripts/podman-install.sh",
       "${path.root}/../shared/scripts/monitoring-agent.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
