@@ -1,0 +1,145 @@
+---
+# ──────────────────────────────────────────────────────────────
+# roles/hardening/tasks/main.yml — CIS-style OS hardening
+# ──────────────────────────────────────────────────────────────
+# Applies a subset of CIS Benchmark recommendations for
+# Ubuntu 24.04. Adjust to your compliance requirements.
+
+# ── 1. File Permissions ──────────────────────────────────────
+
+- name: Set permissions on /etc/passwd
+  ansible.builtin.file:
+    path: /etc/passwd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Set permissions on /etc/shadow
+  ansible.builtin.file:
+    path: /etc/shadow
+    owner: root
+    group: shadow
+    mode: "0640"
+
+- name: Set permissions on /etc/gshadow
+  ansible.builtin.file:
+    path: /etc/gshadow
+    owner: root
+    group: shadow
+    mode: "0640"
+
+- name: Set permissions on /etc/group
+  ansible.builtin.file:
+    path: /etc/group
+    owner: root
+    group: root
+    mode: "0644"
+
+# ── 2. Disable Unused Filesystems ───────────────────────────
+
+- name: Disable unused filesystem modules
+  ansible.builtin.copy:
+    dest: "/etc/modprobe.d/cis-disable-{{ item }}.conf"
+    content: "install {{ item }} /bin/true\n"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - cramfs
+    - freevxfs
+    - hfs
+    - hfsplus
+    - jffs2
+    - udf
+
+# ── 3. Restrict Core Dumps ──────────────────────────────────
+
+- name: Restrict core dumps via limits.conf
+  ansible.builtin.lineinfile:
+    path: /etc/security/limits.conf
+    line: "* hard core 0"
+    create: true
+    mode: "0644"
+
+- name: Restrict core dumps via sysctl
+  ansible.builtin.sysctl:
+    name: fs.suid_dumpable
+    value: "0"
+    state: present
+    reload: true
+
+# ── 4. Password Policy ──────────────────────────────────────
+
+- name: Set password aging (max 90 days)
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MAX_DAYS"
+    line: "PASS_MAX_DAYS   90"
+
+- name: Set minimum password age (1 day)
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MIN_DAYS"
+    line: "PASS_MIN_DAYS   1"
+
+- name: Set minimum password length
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MIN_LEN"
+    line: "PASS_MIN_LEN    14"
+
+# ── 5. Login Banner ─────────────────────────────────────────
+
+- name: Set login warning banner
+  ansible.builtin.copy:
+    dest: /etc/issue.net
+    content: |
+      ****************************************************************
+      *  Authorized access only. All activity is monitored and       *
+      *  logged. Unauthorized access will be prosecuted.             *
+      ****************************************************************
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure SSH to display banner
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?Banner"
+    line: "Banner /etc/issue.net"
+
+# ── 6. Audit Rules ──────────────────────────────────────────
+
+- name: Add audit rules for sensitive file access
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/50-packer-hardening.rules
+    content: |
+      # Monitor changes to user/group files
+      -w /etc/passwd -p wa -k identity
+      -w /etc/group -p wa -k identity
+      -w /etc/shadow -p wa -k identity
+      -w /etc/gshadow -p wa -k identity
+      -w /etc/sudoers -p wa -k sudoers
+      -w /etc/sudoers.d/ -p wa -k sudoers
+
+      # Monitor login/logout events
+      -w /var/log/auth.log -p wa -k logins
+      -w /var/log/faillog -p wa -k logins
+      -w /var/log/lastlog -p wa -k logins
+    owner: root
+    group: root
+    mode: "0640"
+
+# ── 7. Remove Unnecessary Packages ──────────────────────────
+
+- name: Remove unnecessary packages
+  ansible.builtin.apt:
+    name:
+      - telnet
+      - rsh-client
+      - rsh-server
+      - talk
+      - talkd
+    state: absent
+    purge: true
+  ignore_errors: true  # Some may not be installed

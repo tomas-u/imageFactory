@@ -1,0 +1,45 @@
+---
+# ──────────────────────────────────────────────────────────────
+# playbook.yml — Main Ansible playbook for Packer provisioning
+# ──────────────────────────────────────────────────────────────
+# Called by the Packer `ansible` provisioner.
+# Applies OS hardening and any additional configuration roles.
+
+- name: Harden and configure golden image
+  hosts: all
+  become: true
+
+  vars:
+    target_env: "{{ target_env | default('production') }}"
+
+  roles:
+    - role: hardening
+      tags: [hardening, security]
+
+  tasks:
+    # ── Informational ──────────────────────────────────────
+    - name: Print build metadata
+      ansible.builtin.debug:
+        msg: |
+          Target environment : {{ target_env }}
+          OS                 : {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel             : {{ ansible_kernel }}
+          Date               : {{ ansible_date_time.iso8601 }}
+
+    # ── Ensure NTP is running ──────────────────────────────
+    - name: Enable and start chrony (NTP)
+      ansible.builtin.systemd:
+        name: chrony
+        state: started
+        enabled: true
+
+    # ── Verify key services ────────────────────────────────
+    - name: Verify critical services are enabled
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+      loop:
+        - ssh
+        - fail2ban
+        - auditd
+        - chrony

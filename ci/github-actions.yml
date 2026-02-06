@@ -1,0 +1,163 @@
+# ──────────────────────────────────────────────────────────────
+# .github/workflows/packer-pipeline.yml
+# CI/CD Pipeline: Validate, Build, and Publish Golden Images
+# ──────────────────────────────────────────────────────────────
+#
+# Triggers:
+#   • PR  → validate only (fast feedback, no cloud cost)
+#   • Push to main → validate + build + publish
+#
+# Secrets required in GitHub:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#   (or use OIDC with aws-actions/configure-aws-credentials)
+
+name: Packer Image Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "aws-webserver/**"
+      - "shared/**"
+      - ".github/workflows/packer-pipeline.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "aws-webserver/**"
+      - "shared/**"
+
+env:
+  PACKER_VERSION: "1.11.2"
+  AWS_REGION: "eu-west-1"
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: packer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # Job 1: Validate
+  # Runs on every PR and push. No cloud credentials needed.
+  # ────────────────────────────────────────────────────────────
+  validate:
+    name: "Validate Templates"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Packer Init (download plugins)
+        working-directory: aws-webserver
+        run: packer init .
+
+      - name: Packer Validate
+        working-directory: aws-webserver
+        run: packer validate .
+
+      - name: Packer Format Check
+        working-directory: aws-webserver
+        run: |
+          packer fmt -check -diff .
+          if [ $? -ne 0 ]; then
+            echo "::error::Packer files are not formatted. Run 'packer fmt .' locally."
+            exit 1
+          fi
+
+      - name: Lint shared scripts (shellcheck)
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck shared/scripts/*.sh
+
+      - name: Lint Ansible playbooks
+        run: |
+          pip install ansible-lint
+          ansible-lint shared/ansible/playbook.yml
+
+  # ────────────────────────────────────────────────────────────
+  # Job 2: Build (only on push to main)
+  # Actually builds the AMI on AWS.
+  # ────────────────────────────────────────────────────────────
+  build:
+    name: "Build AMI"
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      ami_id: ${{ steps.extract.outputs.ami_id }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Setup Ansible
+        run: pip install ansible
+
+      - name: Packer Init
+        working-directory: aws-webserver
+        run: packer init .
+
+      - name: Packer Build
+        working-directory: aws-webserver
+        run: |
+          packer build \
+            -var "environment=production" \
+            -color=false \
+            -timestamp-ui \
+            .
+
+      - name: Extract AMI ID from manifest
+        id: extract
+        working-directory: aws-webserver
+        run: |
+          AMI_ID=$(jq -r '.builds[-1].artifact_id' build-manifest.json | cut -d: -f2)
+          echo "ami_id=${AMI_ID}" >> "$GITHUB_OUTPUT"
+          echo "### Built AMI: \`${AMI_ID}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: packer-manifest
+          path: aws-webserver/build-manifest.json
+
+  # ────────────────────────────────────────────────────────────
+  # Job 3: Notify / Trigger downstream
+  # ────────────────────────────────────────────────────────────
+  notify:
+    name: "Post-Build"
+    needs: build
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "✅ New AMI published: ${{ needs.build.outputs.ami_id }}"
+          echo ""
+          echo "Next steps:"
+          echo "  • Update Terraform tfvars with new AMI ID"
+          echo "  • Or trigger a Terraform apply via repository_dispatch"
+
+      # Uncomment to auto-trigger a Terraform deployment:
+      # - name: Trigger Terraform deploy
+      #   uses: peter-evans/repository-dispatch@v3
+      #   with:
+      #     token: ${{ secrets.REPO_PAT }}
+      #     repository: your-org/terraform-infra
+      #     event-type: new-ami
+      #     client-payload: '{"ami_id": "${{ needs.build.outputs.ami_id }}"}'

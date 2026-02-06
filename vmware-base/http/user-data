@@ -1,0 +1,51 @@
+#cloud-config
+autoinstall:
+  version: 1
+
+  # ── Locale & Keyboard ──────────────────────────────────────
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+
+  # ── Network (DHCP) ─────────────────────────────────────────
+  network:
+    version: 2
+    ethernets:
+      ens192:
+        dhcp4: true
+
+  # ── Storage (entire disk, LVM) ─────────────────────────────
+  storage:
+    layout:
+      name: lvm
+
+  # ── Identity (build-time user, removed during cleanup) ─────
+  identity:
+    hostname: packer-template
+    username: packer
+    # Password: "packer" — only used during build, then locked.
+    # Generated with: mkpasswd --method=SHA-512 packer
+    password: "$6$rounds=4096$randomsalt$LZT0DP0BDabcdefg..."
+
+  # ── SSH ─────────────────────────────────────────────────────
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  # ── Packages ────────────────────────────────────────────────
+  packages:
+    - sudo
+    - curl
+    - wget
+    - ca-certificates
+    - gnupg
+    - cloud-init
+    - open-vm-tools
+    - python3
+    - python3-pip
+
+  # ── Post-Install Commands ──────────────────────────────────
+  late-commands:
+    # Grant packer user passwordless sudo (needed by provisioners)
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer

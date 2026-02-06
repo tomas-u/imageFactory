@@ -1,0 +1,25 @@
+# Packer
+packer_cache/
+*.pkr.hcl.lock
+crash.log
+
+# OS
+*:Zone.Identifier
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit credentials
+*.pem
+*.key
+.env
+.env.*
+credentials.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ansible
+*.retry
