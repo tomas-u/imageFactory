@@ -15,6 +15,7 @@
 # ──────────────────────────────────────────────────────────────
 
 proxmox_node       = "pve"
+vm_id              = 9901
 vm_name            = "debian-13-template"
 cores              = 2
 sockets            = 1
