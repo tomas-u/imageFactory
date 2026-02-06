@@ -25,6 +25,7 @@ packer-templates/
 ├── vmware-base/                     # VMware vSphere — Ubuntu 24.04 template
 │   ├── vsphere.pkr.hcl
 │   ├── variables.pkr.hcl
+│   ├── vsphere.auto.pkrvars.hcl    #   Environment-specific overrides
 │   └── http/
 │       └── user-data                #   Cloud-init autoinstall config
 │
@@ -41,8 +42,9 @@ packer-templates/
 │               └── tasks/
 │                   └── main.yml     #   CIS-style OS hardening tasks
 │
-└── ci/
-    └── github-actions.yml           # CI pipeline: validate → build → publish
+└── .github/
+    └── workflows/
+        └── packer-pipeline.yml      # CI pipeline: validate → build → publish
 ```
 
 ---
@@ -102,6 +104,80 @@ packer build .
 
 ---
 
+## Quick Start (Azure)
+
+```bash
+# 1. Authenticate to Azure (interactive — for CI use a Service Principal)
+az login
+
+# 2. Set your subscription ID
+export PKR_VAR_subscription_id="your-subscription-id"
+
+# For CI / Service Principal auth, also set:
+#   export PKR_VAR_tenant_id="..."
+#   export PKR_VAR_client_id="..."
+#   export PKR_VAR_client_secret="..."
+
+# 3. Navigate to the Azure template
+cd azure-base
+
+# 4. Initialise plugins and validate
+packer init .
+packer validate .
+
+# 5. Build the managed image
+packer build .
+#   → outputs the image name in the configured resource group
+```
+
+---
+
+## Quick Start (VMware vSphere)
+
+VMware builds install Ubuntu from an ISO using cloud-init autoinstall
+(unattended). The autoinstall config is in `vmware-base/http/user-data`.
+
+```bash
+# 1. Set vCenter credentials (never commit these)
+export PKR_VAR_vcenter_server="vcsa.example.com"
+export PKR_VAR_vcenter_username="administrator@vsphere.local"
+export PKR_VAR_vcenter_password="your-password"
+
+# 2. Edit vmware-base/vsphere.auto.pkrvars.hcl for your environment:
+#    datacenter, cluster, datastore, network, ISO path, etc.
+
+# 3. Navigate to the VMware template
+cd vmware-base
+
+# 4. Initialise plugins and validate
+packer init .
+packer validate .
+
+# 5. Build the VM template
+packer build .
+#   → creates a VM template on vCenter
+```
+
+The boot process: Packer creates a VM, attaches the ISO, types a boot command
+that points the Ubuntu installer at `http://<packer-ip>:<port>/` for
+autoinstall configuration, then waits for SSH to become available (~10-15 min).
+
+---
+
+## Make Targets
+
+A `Makefile` is provided for common operations:
+
+```bash
+make help             # Show all targets
+make validate-all     # Validate all three platforms
+make build-aws        # Build the AWS AMI
+make lint             # Run shellcheck on shared scripts
+make fmt              # Auto-format all HCL files
+```
+
+---
+
 ## Key Packer Concepts
 
 ### Template anatomy (HCL)
@@ -155,7 +231,7 @@ Terraform / ASG picks up new image ID
 Rolling deploy of new instances
 ```
 
-The CI pipeline in `ci/github-actions.yml` automates this end-to-end.
+The CI pipeline in `.github/workflows/packer-pipeline.yml` automates this end-to-end.
 
 ---
 

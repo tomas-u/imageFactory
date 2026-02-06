@@ -5,6 +5,11 @@
 variable "subscription_id" {
   type        = string
   description = "Azure subscription ID. Set via env: PKR_VAR_subscription_id"
+
+  validation {
+    condition     = var.subscription_id != "00000000-0000-0000-0000-000000000000"
+    error_message = "subscription_id is still the placeholder value. Set a real Azure subscription ID."
+  }
 }
 
 variable "tenant_id" {
@@ -64,8 +69,14 @@ variable "os_disk_size_gb" {
 # ── Tags ─────────────────────────────────────────────────────
 
 variable "environment" {
-  type    = string
-  default = "production"
+  type        = string
+  default     = "production"
+  description = "Target environment tag (production, staging, development)."
+
+  validation {
+    condition     = contains(["production", "staging", "development"], var.environment)
+    error_message = "environment must be production, staging, or development."
+  }
 }
 
 variable "team" {

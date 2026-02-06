@@ -49,7 +49,17 @@ cloud-init clean --logs 2>/dev/null || true
 # dd if=/dev/zero of=/EMPTY bs=1M 2>/dev/null || true
 # rm -f /EMPTY
 
-# ── 8. Sync filesystem ─────────────────────────────────────
+# ── 8. Lock build user ─────────────────────────────────────
+# The packer user (used by VMware/Azure builds) should not persist
+# with a known password and passwordless sudo in the final image.
+
+if id "packer" &>/dev/null; then
+  passwd -l packer
+  rm -f /etc/sudoers.d/packer
+  echo ">>> [cleanup] packer user locked and sudo removed."
+fi
+
+# ── 9. Sync filesystem ─────────────────────────────────────
 
 sync
 

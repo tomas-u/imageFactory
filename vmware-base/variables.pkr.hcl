@@ -100,8 +100,14 @@ variable "iso_checksum" {
 # ── Tags ─────────────────────────────────────────────────────
 
 variable "environment" {
-  type    = string
-  default = "production"
+  type        = string
+  default     = "production"
+  description = "Target environment tag (production, staging, development)."
+
+  validation {
+    condition     = contains(["production", "staging", "development"], var.environment)
+    error_message = "environment must be production, staging, or development."
+  }
 }
 
 variable "team" {

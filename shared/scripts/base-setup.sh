@@ -43,15 +43,20 @@ apt-get install -y \
 timedatectl set-timezone UTC
 
 # ── 4. SSH Hardening ─────────────────────────────────────────
+# NOTE: Sections 4-5 (SSH & sysctl hardening) overlap with the
+# Ansible hardening role in shared/ansible/roles/hardening/.
+# Both exist because Azure and VMware builds don't run Ansible yet.
+# Once Ansible is added to all platforms, migrate these settings
+# into the Ansible role as the single source of truth.
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 
 # Disable root login
 sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONFIG"
 
-# Disable password auth (use keys only in production)
-# Commented out for build — enable in your final config
-# sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONFIG"
+# Disable password auth (keys only). Safe during Packer builds because
+# the SSH session is already established before this runs.
+sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONFIG"
 
 # Limit auth attempts
 sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' "$SSHD_CONFIG"
