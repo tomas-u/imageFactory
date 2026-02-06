@@ -16,27 +16,41 @@ apt-get dist-upgrade -y
 
 # ── 2. Essential Packages ────────────────────────────────────
 
-apt-get install -y \
-  ca-certificates \
-  curl \
-  wget \
-  gnupg \
-  lsb-release \
-  software-properties-common \
-  unzip \
-  jq \
-  htop \
-  net-tools \
-  dnsutils \
-  vim \
-  git \
-  python3 \
-  python3-pip \
-  fail2ban \
-  auditd \
-  audispd-plugins \
-  ufw \
+PACKAGES=(
+  ca-certificates
+  curl
+  wget
+  gnupg
+  lsb-release
+  unzip
+  jq
+  htop
+  net-tools
+  dnsutils
+  vim
+  git
+  python3
+  python3-pip
+  fail2ban
+  auditd
+  ufw
   chrony
+)
+
+# Distro-specific packages
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+  case "$ID" in
+    ubuntu)
+      PACKAGES+=(software-properties-common audispd-plugins)
+      ;;
+    debian)
+      PACKAGES+=(audispd-plugins)
+      ;;
+  esac
+fi
+
+apt-get install -y "${PACKAGES[@]}"
 
 # ── 3. Timezone ──────────────────────────────────────────────
 
