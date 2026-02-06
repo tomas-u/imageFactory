@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────
-# variables.pkr.hcl — Input variables for Proxmox VE image
+# variables.pkr.hcl — Input variables for Proxmox Ubuntu image
 # ──────────────────────────────────────────────────────────────
 
 # ── Proxmox Connection ─────────────────────────────────────

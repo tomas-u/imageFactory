@@ -1,8 +1,8 @@
 # Packer Templates — Practical DevOps Guide
 
 A production-ready collection of HashiCorp Packer templates for building golden
-VM images across AWS, Azure, VMware, and Proxmox. Each template follows
-immutable infrastructure and DevSecOps best practices.
+VM images across AWS, Azure, VMware, and Proxmox (Ubuntu + Debian). Each
+template follows immutable infrastructure and DevSecOps best practices.
 
 ---
 
@@ -29,13 +29,20 @@ packer-templates/
 │   └── http/
 │       └── user-data                #   Cloud-init autoinstall config
 │
-├── proxmox-base/                    # Proxmox VE — Ubuntu 24.04 template
+├── proxmox-ubuntu/                    # Proxmox VE — Ubuntu 24.04 template
 │   ├── proxmox.pkr.hcl
 │   ├── variables.pkr.hcl
 │   ├── proxmox.auto.pkrvars.hcl    #   Environment-specific overrides
 │   └── http/
 │       ├── user-data                #   Cloud-init autoinstall config
 │       └── meta-data
+│
+├── proxmox-debian/                  # Proxmox VE — Debian 13 (Trixie) template
+│   ├── proxmox.pkr.hcl
+│   ├── variables.pkr.hcl
+│   ├── proxmox.auto.pkrvars.hcl    #   Environment-specific overrides
+│   └── http/
+│       └── preseed.cfg              #   Debian preseed unattended config
 │
 ├── shared/                          # Reusable provisioning assets
 │   ├── scripts/
@@ -172,10 +179,10 @@ autoinstall configuration, then waits for SSH to become available (~10-15 min).
 
 ---
 
-## Quick Start (Proxmox VE)
+## Quick Start (Proxmox Ubuntu 24.04)
 
-Proxmox builds install Ubuntu from an ISO using cloud-init autoinstall
-(unattended), similar to VMware. The autoinstall config is in `proxmox-base/http/user-data`.
+Proxmox Ubuntu builds install Ubuntu from an ISO using cloud-init autoinstall
+(unattended), similar to VMware. The autoinstall config is in `proxmox-ubuntu/http/user-data`.
 
 ```bash
 # 1. Set Proxmox API credentials (never commit these)
@@ -188,11 +195,11 @@ export PKR_VAR_proxmox_token="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 # export PKR_VAR_proxmox_username="packer@pve"
 # export PKR_VAR_proxmox_password="your-password"
 
-# 2. Edit proxmox-base/proxmox.auto.pkrvars.hcl for your environment:
+# 2. Edit proxmox-ubuntu/proxmox.auto.pkrvars.hcl for your environment:
 #    node, storage pools, network bridge, ISO path, etc.
 
 # 3. Navigate to the Proxmox template
-cd proxmox-base
+cd proxmox-ubuntu
 
 # 4. Initialise plugins and validate
 packer init .
@@ -210,13 +217,52 @@ SSH to become available (~10-15 min).
 
 ---
 
+## Quick Start (Proxmox Debian 13)
+
+Proxmox Debian builds install Debian 13 (Trixie) from a netinst ISO using
+preseed for unattended installation. The preseed config is in
+`proxmox-debian/http/preseed.cfg`.
+
+```bash
+# 1. Set Proxmox API credentials (same as Ubuntu — never commit these)
+#    Option A — API token (recommended):
+export PKR_VAR_proxmox_url="https://proxmox.example.com:8006/api2/json"
+export PKR_VAR_proxmox_username="packer@pve!packer-token"
+export PKR_VAR_proxmox_token="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+#    Option B — Password:
+# export PKR_VAR_proxmox_username="packer@pve"
+# export PKR_VAR_proxmox_password="your-password"
+
+# 2. Edit proxmox-debian/proxmox.auto.pkrvars.hcl for your environment:
+#    node, storage pools, network bridge, ISO path, etc.
+
+# 3. Navigate to the Proxmox Debian template
+cd proxmox-debian
+
+# 4. Initialise plugins and validate
+packer init .
+packer validate .
+
+# 5. Build the VM template
+packer build .
+#   → creates a Debian 13 VM template on Proxmox VE
+```
+
+The boot process: Packer creates a VM, attaches the Debian netinst ISO, drops
+to the GRUB command line and manually loads the installer kernel with a preseed
+URL pointing at `http://<packer-ip>:<port>/preseed.cfg`, then waits for SSH to
+become available (~10-15 min).
+
+---
+
 ## Make Targets
 
 A `Makefile` is provided for common operations:
 
 ```bash
 make help             # Show all targets
-make validate-all     # Validate all four platforms
+make validate-all     # Validate all five platforms
 make build-aws        # Build the AWS AMI
 make lint             # Run shellcheck on shared scripts
 make fmt              # Auto-format all HCL files

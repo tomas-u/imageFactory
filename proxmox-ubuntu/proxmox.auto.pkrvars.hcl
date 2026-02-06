@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────
-# proxmox.auto.pkrvars.hcl — Proxmox VE environment overrides
+# proxmox.auto.pkrvars.hcl — Proxmox Ubuntu environment overrides
 # ──────────────────────────────────────────────────────────────
 # Files ending in .auto.pkrvars.hcl are loaded automatically.
 # Adjust these values for your Proxmox environment.
