@@ -161,18 +161,10 @@ build {
     ]
   }
 
-  # ── Step 4: Cleanup ────────────────────────────────────────
-
-  provisioner "shell" {
-    scripts = [
-      "${path.root}/../../shared/scripts/cleanup.sh",
-    ]
-    execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
-  }
-
-  # ── Step 5: Reset machine-id (critical for cloning) ────────
+  # ── Step 4: Reset machine-id (critical for cloning) ────────
   # Without this, all VMs cloned from the template would share
   # the same machine-id, causing DHCP and systemd-journal issues.
+  # Must run BEFORE cleanup, which locks the packer user.
 
   provisioner "shell" {
     inline = [
@@ -181,5 +173,14 @@ build {
       "sudo ln -s /etc/machine-id /var/lib/dbus/machine-id",
       "echo '>>> machine-id reset for template cloning.'"
     ]
+  }
+
+  # ── Step 5: Cleanup (must be last — locks packer user) ────
+
+  provisioner "shell" {
+    scripts = [
+      "${path.root}/../../shared/scripts/cleanup.sh",
+    ]
+    execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
 }
