@@ -1,0 +1,118 @@
+# ──────────────────────────────────────────────────────────────
+# .github/workflows/container-pipeline.yml
+# CI/CD Pipeline: Lint, Build, and Push Container Images
+# ──────────────────────────────────────────────────────────────
+#
+# Triggers:
+#   • PR  → lint + build (no push)
+#   • Push to main → lint + build + push to ghcr.io
+#
+# Images are pushed to ghcr.io/OWNER/IMAGE:latest and :SHA
+
+name: Container Image Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "containers/**"
+      - "shared/**"
+      - ".github/workflows/container-pipeline.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "containers/**"
+      - "shared/**"
+
+permissions:
+  packages: write
+  contents: read
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: containers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # Job 1: Lint Containerfiles
+  # ────────────────────────────────────────────────────────────
+  lint:
+    name: "Lint Containerfiles"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install hadolint
+        run: |
+          HADOLINT_VERSION="v2.12.0"
+          curl -fsSL -o /usr/local/bin/hadolint \
+            "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          chmod +x /usr/local/bin/hadolint
+          hadolint --version
+
+      - name: Lint nginx-base
+        run: hadolint containers/nginx-base/Containerfile
+
+      - name: Lint dotnet-base
+        run: hadolint containers/dotnet-base/Containerfile
+
+      - name: Lint python-base
+        run: hadolint containers/python-base/Containerfile
+
+  # ────────────────────────────────────────────────────────────
+  # Job 2: Build (and push on main)
+  # ────────────────────────────────────────────────────────────
+  build:
+    name: "Build ${{ matrix.image }}"
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - nginx-base
+          - dotnet-base
+          - python-base
+    env:
+      REGISTRY: ghcr.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          IMAGE_NAME: ${{ matrix.image }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          OWNER_LC=$(echo "${REPO_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "image_latest=${REGISTRY}/${OWNER_LC}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
+          echo "image_sha=${REGISTRY}/${OWNER_LC}/${IMAGE_NAME}:${GIT_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build container image
+        env:
+          IMAGE_LATEST: ${{ steps.meta.outputs.image_latest }}
+          IMAGE_SHA: ${{ steps.meta.outputs.image_sha }}
+        run: |
+          podman build \
+            -t "${IMAGE_LATEST}" \
+            -t "${IMAGE_SHA}" \
+            "containers/${{ matrix.image }}/"
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push container image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE_LATEST: ${{ steps.meta.outputs.image_latest }}
+          IMAGE_SHA: ${{ steps.meta.outputs.image_sha }}
+        run: |
+          podman push "${IMAGE_LATEST}"
+          podman push "${IMAGE_SHA}"

@@ -54,7 +54,7 @@ source "proxmox-iso" "debian" {
   vm_id   = var.vm_id != 0 ? var.vm_id : null
   vm_name = local.vm_name
   os      = "l26"
-  bios    = "ovmf"
+  bios    = "seabios"
   machine = "q35"
 
   cores   = var.cores
@@ -62,12 +62,6 @@ source "proxmox-iso" "debian" {
   memory  = var.memory
 
   scsi_controller = "virtio-scsi-pci"
-
-  efi_config {
-    efi_storage_pool  = var.disk_storage_pool
-    efi_type          = "4m"
-    pre_enrolled_keys = true
-  }
 
   disks {
     storage_pool = var.disk_storage_pool
@@ -84,9 +78,11 @@ source "proxmox-iso" "debian" {
   }
 
   # ── ISO ──
-  iso_file         = var.iso_file
-  iso_storage_pool = var.iso_storage_pool
-  unmount_iso      = true
+  boot_iso {
+    iso_file         = var.iso_file
+    iso_storage_pool = var.iso_storage_pool
+    unmount          = true
+  }
 
   # ── Cloud-Init ──
   cloud_init              = var.cloud_init
@@ -100,20 +96,17 @@ source "proxmox-iso" "debian" {
   # preseed.cfg file from the http/ directory.
   http_directory = "${path.root}/http"
 
-  # Boot command: drops to GRUB command line, manually loads
-  # the Debian installer kernel with preseed URL, then boots.
-  boot_wait = "10s"
+  # Boot command: at the ISOLINUX menu, select "Install" (text),
+  # press Tab to edit kernel params, append preseed URL, Enter to boot.
+  boot_wait = "5s"
   boot_command = [
-    "c<wait>",
-    "linux /install.amd/vmlinuz ",
-    "auto=true priority=critical ",
-    "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg ",
-    "locale=en_US.UTF-8 keymap=us hostname=packer-template domain= ",
-    "--- quiet",
-    "<enter><wait>",
-    "initrd /install.amd/initrd.gz",
-    "<enter><wait>",
-    "boot",
+    "<down><wait>",
+    "<tab>",
+    " auto=true priority=critical",
+    " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg",
+    " locale=sv_SE.UTF-8 keymap=se hostname=packer-template domain=",
+    " netcfg/choose_interface=auto",
+    " --- quiet",
     "<enter>"
   ]
 
@@ -147,9 +140,9 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/base-setup.sh",
-      "${path.root}/../shared/scripts/podman-install.sh",
-      "${path.root}/../shared/scripts/monitoring-agent.sh",
+      "${path.root}/../../shared/scripts/base-setup.sh",
+      "${path.root}/../../shared/scripts/podman-install.sh",
+      "${path.root}/../../shared/scripts/monitoring-agent.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
@@ -169,7 +162,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/cleanup.sh",
+      "${path.root}/../../shared/scripts/cleanup.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }

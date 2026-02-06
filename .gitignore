@@ -24,3 +24,6 @@ credentials.json
 
 # Ansible
 *.retry
+
+# Containers
+*.tar

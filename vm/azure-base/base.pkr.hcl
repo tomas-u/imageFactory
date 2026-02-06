@@ -118,9 +118,9 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/base-setup.sh",
-      "${path.root}/../shared/scripts/podman-install.sh",
-      "${path.root}/../shared/scripts/monitoring-agent.sh",
+      "${path.root}/../../shared/scripts/base-setup.sh",
+      "${path.root}/../../shared/scripts/podman-install.sh",
+      "${path.root}/../../shared/scripts/monitoring-agent.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
@@ -141,7 +141,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/cleanup.sh",
+      "${path.root}/../../shared/scripts/cleanup.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }

@@ -1,0 +1,17 @@
+# ──────────────────────────────────────────────────────────────
+# dotnet-base — .NET 8 ASP.NET runtime (chiseled/distroless)
+# ──────────────────────────────────────────────────────────────
+# Usage:
+#   FROM ghcr.io/OWNER/dotnet-base:latest
+#   COPY --from=build /app/publish .
+#   ENTRYPOINT ["dotnet", "MyApp.dll"]
+# ──────────────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble-chiseled
+
+# Chiseled images are distroless: no shell, no package manager,
+# non-root by default (UID 1654). Nothing to add — just set env.
+
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_EnableDiagnostics=0
+
+EXPOSE 8080

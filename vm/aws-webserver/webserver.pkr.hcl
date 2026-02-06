@@ -141,7 +141,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/base-setup.sh",
+      "${path.root}/../../shared/scripts/base-setup.sh",
     ]
     execute_command  = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
     expect_disconnect = false
@@ -151,7 +151,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/podman-install.sh",
+      "${path.root}/../../shared/scripts/podman-install.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
@@ -202,7 +202,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/monitoring-agent.sh",
+      "${path.root}/../../shared/scripts/monitoring-agent.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
@@ -212,7 +212,7 @@ build {
   # Requires Ansible installed on the *build machine* (not the VM).
 
   provisioner "ansible" {
-    playbook_file = "${path.root}/../shared/ansible/playbook.yml"
+    playbook_file = "${path.root}/../../shared/ansible/playbook.yml"
     user          = var.ssh_username
     use_proxy     = false
 
@@ -228,7 +228,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/cleanup.sh",
+      "${path.root}/../../shared/scripts/cleanup.sh",
     ]
     execute_command    = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
     expect_disconnect  = false

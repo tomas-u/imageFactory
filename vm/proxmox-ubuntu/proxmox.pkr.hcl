@@ -83,9 +83,11 @@ source "proxmox-iso" "ubuntu" {
   }
 
   # ── ISO ──
-  iso_file         = var.iso_file
-  iso_storage_pool = var.iso_storage_pool
-  unmount_iso      = true
+  boot_iso {
+    iso_file         = var.iso_file
+    iso_storage_pool = var.iso_storage_pool
+    unmount          = true
+  }
 
   # ── Cloud-Init ──
   cloud_init              = var.cloud_init
@@ -141,9 +143,9 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/base-setup.sh",
-      "${path.root}/../shared/scripts/podman-install.sh",
-      "${path.root}/../shared/scripts/monitoring-agent.sh",
+      "${path.root}/../../shared/scripts/base-setup.sh",
+      "${path.root}/../../shared/scripts/podman-install.sh",
+      "${path.root}/../../shared/scripts/monitoring-agent.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }
@@ -163,7 +165,7 @@ build {
 
   provisioner "shell" {
     scripts = [
-      "${path.root}/../shared/scripts/cleanup.sh",
+      "${path.root}/../../shared/scripts/cleanup.sh",
     ]
     execute_command = "chmod +x {{ .Path }}; sudo bash {{ .Path }}"
   }

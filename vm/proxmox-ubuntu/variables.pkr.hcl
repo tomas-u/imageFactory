@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────
-# variables.pkr.hcl — Input variables for Proxmox Debian image
+# variables.pkr.hcl — Input variables for Proxmox Ubuntu image
 # ──────────────────────────────────────────────────────────────
 
 # ── Proxmox Connection ─────────────────────────────────────
@@ -51,7 +51,7 @@ variable "vm_id" {
 
 variable "iso_file" {
   type        = string
-  description = "Proxmox ISO path. Format: storage:iso/filename.iso (e.g. local:iso/debian-13.3.0-amd64-netinst.iso)"
+  description = "Proxmox ISO path. Format: storage:iso/filename.iso (e.g. local:iso/ubuntu-24.04.1-live-server-amd64.iso)"
 }
 
 variable "iso_storage_pool" {
@@ -64,7 +64,7 @@ variable "iso_storage_pool" {
 
 variable "vm_name" {
   type    = string
-  default = "debian-13-template"
+  default = "ubuntu-2404-template"
 }
 
 variable "cores" {
@@ -142,7 +142,7 @@ variable "environment" {
 
   validation {
     condition     = contains(["production", "staging", "development"], var.environment)
-    error_message = "environment must be production, staging, or development."
+    error_message = "Environment must be production, staging, or development."
   }
 }
 

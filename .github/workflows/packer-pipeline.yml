@@ -18,21 +18,21 @@ on:
   push:
     branches: [main]
     paths:
-      - "aws-webserver/**"
-      - "azure-base/**"
-      - "vmware-base/**"
-      - "proxmox-ubuntu/**"
-      - "proxmox-debian/**"
+      - "vm/aws-webserver/**"
+      - "vm/azure-base/**"
+      - "vm/vmware-base/**"
+      - "vm/proxmox-ubuntu/**"
+      - "vm/proxmox-debian/**"
       - "shared/**"
       - ".github/workflows/packer-pipeline.yml"
   pull_request:
     branches: [main]
     paths:
-      - "aws-webserver/**"
-      - "azure-base/**"
-      - "vmware-base/**"
-      - "proxmox-ubuntu/**"
-      - "proxmox-debian/**"
+      - "vm/aws-webserver/**"
+      - "vm/azure-base/**"
+      - "vm/vmware-base/**"
+      - "vm/proxmox-ubuntu/**"
+      - "vm/proxmox-debian/**"
       - "shared/**"
 
 env:
@@ -61,15 +61,15 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Init (download plugins)
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: packer init .
 
       - name: Packer Validate
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: packer validate .
 
       - name: Packer Format Check
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: |
           packer fmt -check -diff .
           if [ $? -ne 0 ]; then
@@ -93,15 +93,15 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Init (download plugins)
-        working-directory: azure-base
+        working-directory: vm/azure-base
         run: packer init .
 
       - name: Packer Validate
-        working-directory: azure-base
+        working-directory: vm/azure-base
         run: packer validate -var "subscription_id=12345678-1234-1234-1234-123456789012" .
 
       - name: Packer Format Check
-        working-directory: azure-base
+        working-directory: vm/azure-base
         run: |
           packer fmt -check -diff .
           if [ $? -ne 0 ]; then
@@ -125,11 +125,11 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Init (download plugins)
-        working-directory: vmware-base
+        working-directory: vm/vmware-base
         run: packer init .
 
       - name: Packer Validate
-        working-directory: vmware-base
+        working-directory: vm/vmware-base
         run: |
           packer validate \
             -var "vcenter_server=placeholder.local" \
@@ -138,7 +138,7 @@ jobs:
             .
 
       - name: Packer Format Check
-        working-directory: vmware-base
+        working-directory: vm/vmware-base
         run: |
           packer fmt -check -diff .
           if [ $? -ne 0 ]; then
@@ -162,11 +162,11 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Init (download plugins)
-        working-directory: proxmox-ubuntu
+        working-directory: vm/proxmox-ubuntu
         run: packer init .
 
       - name: Packer Validate
-        working-directory: proxmox-ubuntu
+        working-directory: vm/proxmox-ubuntu
         run: |
           packer validate \
             -var "proxmox_url=https://placeholder.local:8006/api2/json" \
@@ -176,7 +176,7 @@ jobs:
             .
 
       - name: Packer Format Check
-        working-directory: proxmox-ubuntu
+        working-directory: vm/proxmox-ubuntu
         run: |
           packer fmt -check -diff .
           if [ $? -ne 0 ]; then
@@ -200,11 +200,11 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Init (download plugins)
-        working-directory: proxmox-debian
+        working-directory: vm/proxmox-debian
         run: packer init .
 
       - name: Packer Validate
-        working-directory: proxmox-debian
+        working-directory: vm/proxmox-debian
         run: |
           packer validate \
             -var "proxmox_url=https://placeholder.local:8006/api2/json" \
@@ -214,7 +214,7 @@ jobs:
             .
 
       - name: Packer Format Check
-        working-directory: proxmox-debian
+        working-directory: vm/proxmox-debian
         run: |
           packer fmt -check -diff .
           if [ $? -ne 0 ]; then
@@ -243,7 +243,7 @@ jobs:
           ansible-lint shared/ansible/playbook.yml
 
   # ────────────────────────────────────────────────────────────
-  # Job 5: Build AWS AMI (only on push to main)
+  # Job 7: Build AWS AMI (only on push to main)
   # ────────────────────────────────────────────────────────────
   build:
     name: "Build AMI"
@@ -272,11 +272,11 @@ jobs:
         run: pip install ansible
 
       - name: Packer Init
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: packer init .
 
       - name: Packer Build
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: |
           packer build \
             -var "environment=production" \
@@ -286,7 +286,7 @@ jobs:
 
       - name: Extract AMI ID from manifest
         id: extract
-        working-directory: aws-webserver
+        working-directory: vm/aws-webserver
         run: |
           AMI_ID=$(jq -r '.builds[-1].artifact_id' build-manifest.json | cut -d: -f2)
           echo "ami_id=${AMI_ID}" >> "$GITHUB_OUTPUT"
@@ -296,10 +296,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: packer-manifest
-          path: aws-webserver/build-manifest.json
+          path: vm/aws-webserver/build-manifest.json
 
   # ────────────────────────────────────────────────────────────
-  # Job 6: Notify / Trigger downstream
+  # Job 8: Notify / Trigger downstream
   # ────────────────────────────────────────────────────────────
   notify:
     name: "Post-Build"

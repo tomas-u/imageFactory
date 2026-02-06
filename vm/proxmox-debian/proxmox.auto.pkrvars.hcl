@@ -22,9 +22,10 @@ memory             = 4096
 disk_size          = "40G"
 disk_storage_pool  = "local-lvm"
 network_bridge     = "vmbr0"
+proxmox_insecure   = true
 
-environment        = "staging"
-team               = "platform-engineering"
+environment        = "production"
+team               = "streampower-devops"
 
 # ISO — set this to your Proxmox ISO path:
-# iso_file = "local:iso/debian-13.3.0-amd64-netinst.iso"
+iso_file = "local:iso/debian-13.3.0-amd64-netinst.iso"
