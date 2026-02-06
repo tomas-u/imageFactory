@@ -104,7 +104,7 @@ source "proxmox-iso" "debian" {
     "<tab>",
     " auto=true priority=critical",
     " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg",
-    " locale=sv_SE.UTF-8 keymap=se hostname=packer-template domain=",
+    " locale=en_US.UTF-8 keymap=se hostname=packer-template domain=",
     " netcfg/choose_interface=auto",
     " --- quiet",
     "<enter>"
