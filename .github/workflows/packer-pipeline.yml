@@ -10,6 +10,7 @@
 # Secrets required in GitHub:
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 #   (or use OIDC with aws-actions/configure-aws-credentials)
+#   PROXMOX_URL, PROXMOX_USERNAME, PROXMOX_TOKEN (for Proxmox builds)
 
 name: Packer Image Pipeline
 
@@ -20,6 +21,7 @@ on:
       - "aws-webserver/**"
       - "azure-base/**"
       - "vmware-base/**"
+      - "proxmox-base/**"
       - "shared/**"
       - ".github/workflows/packer-pipeline.yml"
   pull_request:
@@ -28,6 +30,7 @@ on:
       - "aws-webserver/**"
       - "azure-base/**"
       - "vmware-base/**"
+      - "proxmox-base/**"
       - "shared/**"
 
 env:
@@ -142,7 +145,45 @@ jobs:
           fi
 
   # ────────────────────────────────────────────────────────────
-  # Job 4: Lint shared scripts and Ansible
+  # Job 4: Validate Proxmox
+  # ────────────────────────────────────────────────────────────
+  validate-proxmox:
+    name: "Validate Proxmox Templates"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232 # v3.1.0
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Packer Init (download plugins)
+        working-directory: proxmox-base
+        run: packer init .
+
+      - name: Packer Validate
+        working-directory: proxmox-base
+        run: |
+          packer validate \
+            -var "proxmox_url=https://placeholder.local:8006/api2/json" \
+            -var "proxmox_username=placeholder@pve" \
+            -var "proxmox_token=placeholder" \
+            -var "iso_file=local:iso/placeholder.iso" \
+            .
+
+      - name: Packer Format Check
+        working-directory: proxmox-base
+        run: |
+          packer fmt -check -diff .
+          if [ $? -ne 0 ]; then
+            echo "::error::Packer files are not formatted. Run 'packer fmt .' locally."
+            exit 1
+          fi
+
+  # ────────────────────────────────────────────────────────────
+  # Job 5: Lint shared scripts and Ansible
   # ────────────────────────────────────────────────────────────
   lint:
     name: "Lint Scripts & Ansible"
