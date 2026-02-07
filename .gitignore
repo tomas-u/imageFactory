@@ -27,3 +27,6 @@ credentials.json
 
 # Containers
 *.tar
+
+# Screenshots
+screenshots/

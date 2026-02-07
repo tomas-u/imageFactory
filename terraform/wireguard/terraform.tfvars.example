@@ -1,0 +1,20 @@
+proxmox_insecure = true
+proxmox_node     = "pve"
+
+template_id = 9901
+vm_id       = 9100
+vm_name     = "wireguard"
+
+cores  = 2
+memory = 2048
+
+ip_address  = "192.168.1.80/24"
+gateway     = "192.168.1.1"
+dns_servers = "1.1.1.1 8.8.8.8"
+
+ssh_public_key = "ssh-ed25519 AAAA... user@host"
+
+# --- WireGuard / wg-easy ---
+wg_host          = "vpn.example.com"
+wg_password_hash = "$2a$12$..."  # bcrypt hash: htpasswd -nbBC 12 '' 'yourpassword' | cut -d: -f2
+duckdns_token    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

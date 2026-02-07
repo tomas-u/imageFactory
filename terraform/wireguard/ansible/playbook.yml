@@ -1,0 +1,169 @@
+---
+- name: Provision WireGuard + wg-easy
+  hosts: all
+  become: true
+  vars:
+    wg_port: "51820"
+    wg_ui_port: "51821"
+    wg_default_address: "10.0.0.x"
+    wg_default_dns: "1.1.1.1"
+
+  tasks:
+    - name: Ensure resolv.conf has working nameservers
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+        mode: "0644"
+
+    - name: Wait for apt lock to be released
+      ansible.builtin.shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+      changed_when: false
+
+    - name: Install wireguard-tools
+      ansible.builtin.apt:
+        name: wireguard-tools
+        state: present
+        update_cache: true
+      retries: 3
+      delay: 10
+      register: apt_result
+      until: apt_result is success
+
+    - name: Enable IP forwarding
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/90-wireguard.conf
+        content: "net.ipv4.ip_forward=1\n"
+        mode: "0644"
+      notify: Reload sysctl
+
+    - name: Allow WireGuard UDP port through UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ wg_port }}"
+        proto: udp
+
+    - name: Allow wg-easy web UI port through UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ wg_ui_port }}"
+        proto: tcp
+
+    - name: Set UFW default forward policy to ACCEPT
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^DEFAULT_FORWARD_POLICY='
+        line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+      notify: Reload UFW
+
+    - name: Pull wg-easy container image
+      containers.podman.podman_image:
+        name: ghcr.io/wg-easy/wg-easy
+        state: present
+
+    - name: Create Podman quadlet directory
+      ansible.builtin.file:
+        path: /etc/containers/systemd
+        state: directory
+        mode: "0755"
+
+    - name: Create wg-easy Podman quadlet
+      ansible.builtin.copy:
+        dest: /etc/containers/systemd/wg-easy.container
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=wg-easy WireGuard management
+          After=network-online.target
+          Wants=network-online.target
+
+          [Container]
+          Image=ghcr.io/wg-easy/wg-easy
+          ContainerName=wg-easy
+          AutoUpdate=registry
+          AddCapability=NET_ADMIN NET_RAW SYS_MODULE
+          Sysctl=net.ipv4.conf.all.src_valid_mark=1
+          PublishPort={{ wg_port }}:51820/udp
+          PublishPort={{ wg_ui_port }}:51821/tcp
+          Volume=/lib/modules:/lib/modules:ro
+          Volume=wg-easy-data:/etc/wireguard
+          Environment="WG_HOST={{ wg_host }}"
+          Environment="PASSWORD_HASH={{ wg_password_hash }}"
+          Environment="WG_DEFAULT_ADDRESS={{ wg_default_address }}"
+          Environment="WG_DEFAULT_DNS={{ wg_default_dns }}"
+          Environment="WG_PORT={{ wg_port }}"
+
+          [Service]
+          Restart=always
+          TimeoutStartSec=300
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload and start wg-easy
+
+    - name: Create DuckDNS update script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/duckdns-update.sh
+        mode: "0700"
+        content: |
+          #!/bin/bash
+          curl -s "https://www.duckdns.org/update?domains={{ duckdns_domain }}&token={{ duckdns_token }}&verbose=true" -o /tmp/duckdns.log
+
+    - name: Create DuckDNS systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/duckdns-update.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Update DuckDNS
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/duckdns-update.sh
+
+    - name: Create DuckDNS systemd timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/duckdns-update.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Update DuckDNS every 5 minutes
+
+          [Timer]
+          OnBootSec=30
+          OnUnitActiveSec=5min
+
+          [Install]
+          WantedBy=timers.target
+      notify: Enable DuckDNS timer
+
+    - name: Run DuckDNS update now
+      ansible.builtin.command: /usr/local/bin/duckdns-update.sh
+      changed_when: true
+
+  handlers:
+    - name: Reload sysctl
+      ansible.builtin.command: sysctl --system
+      changed_when: true
+
+    - name: Reload UFW
+      ansible.builtin.service:
+        name: ufw
+        state: restarted
+
+    - name: Reload and start wg-easy
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: wg-easy.service
+        state: started
+        enabled: true
+
+    - name: Enable DuckDNS timer
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: duckdns-update.timer
+        state: started
+        enabled: true
