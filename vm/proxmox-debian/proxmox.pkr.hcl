@@ -148,13 +148,13 @@ build {
   }
 
   # ── Step 3: Install QEMU Guest Agent ───────────────────────
+  # The agent is udev-activated on Debian 13 (no [Install] section),
+  # so enable/start is unnecessary — Proxmox starts it automatically.
 
   provisioner "shell" {
     inline = [
-      "echo '>>> Ensuring QEMU Guest Agent is running...'",
+      "echo '>>> Ensuring QEMU Guest Agent is installed...'",
       "sudo apt-get install -y qemu-guest-agent",
-      "sudo systemctl enable qemu-guest-agent",
-      "sudo systemctl start qemu-guest-agent",
     ]
   }
 

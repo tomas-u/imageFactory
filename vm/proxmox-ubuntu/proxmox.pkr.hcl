@@ -151,13 +151,13 @@ build {
   }
 
   # ── Step 3: Install QEMU Guest Agent ───────────────────────
+  # The agent is udev-activated, so enable/start is unnecessary —
+  # Proxmox starts it automatically on the cloned VM.
 
   provisioner "shell" {
     inline = [
       "echo '>>> Installing QEMU Guest Agent...'",
       "sudo apt-get install -y qemu-guest-agent",
-      "sudo systemctl enable qemu-guest-agent",
-      "sudo systemctl start qemu-guest-agent",
     ]
   }
 
