@@ -1,0 +1,82 @@
+---
+- name: Provision Open Claw
+  hosts: all
+  become: true
+  vars:
+    openclaw_gateway_port: "18789"
+
+  tasks:
+    - name: Ensure resolv.conf has working nameservers
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+        mode: "0644"
+
+    - name: Wait for apt lock to be released
+      ansible.builtin.shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+      changed_when: false
+
+    - name: Create apt keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download NodeSource GPG key
+      ansible.builtin.shell: curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+      args:
+        creates: /etc/apt/keyrings/nodesource.gpg
+
+    - name: Add NodeSource repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/nodesource.list
+        content: "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main\n"
+        mode: "0644"
+
+    - name: Install Node.js 22 from NodeSource
+      ansible.builtin.apt:
+        name: nodejs
+        state: latest
+        update_cache: true
+      retries: 3
+      delay: 10
+      register: apt_result
+      until: apt_result is success
+
+    - name: Install Open Claw globally
+      community.general.npm:
+        name: openclaw
+        global: true
+        state: latest
+
+    - name: Allow Open Claw gateway port from LAN
+      community.general.ufw:
+        rule: allow
+        port: "{{ openclaw_gateway_port }}"
+        proto: tcp
+        from_ip: 192.168.1.0/24
+
+    - name: Allow Open Claw gateway port from WireGuard VPN
+      community.general.ufw:
+        rule: allow
+        port: "{{ openclaw_gateway_port }}"
+        proto: tcp
+        from_ip: 10.0.0.0/24
+
+    - name: Install Open Claw daemon via onboard wizard
+      ansible.builtin.command:
+        cmd: >-
+          openclaw onboard
+          --non-interactive
+          --accept-risk
+          --install-daemon
+          --skip-skills
+          --auth-choice skip
+          --gateway-bind lan
+          --gateway-port {{ openclaw_gateway_port }}
+      become: true
+      become_user: "{{ ssh_user }}"
+      register: daemon_result
+      changed_when: daemon_result.rc == 0

@@ -1,0 +1,18 @@
+proxmox_insecure = true
+proxmox_node     = "pve"
+
+template_id = 9901
+vm_id       = 9101
+vm_name     = "openclaw"
+
+cores  = 2
+memory = 4096
+
+ip_address  = "192.168.1.81/24"
+gateway     = "192.168.1.1"
+dns_servers = "1.1.1.1 8.8.8.8"
+
+ssh_public_key = "ssh-ed25519 AAAA... user@host"
+
+# --- Open Claw ---
+# openclaw_gateway_port = 18789  # default
