@@ -1,0 +1,5 @@
+site_name: imageFactory
+nav:
+  - Home: index.md
+plugins:
+  - techdocs-core
